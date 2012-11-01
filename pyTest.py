@@ -37,10 +37,10 @@ import os
 import re
 import time
 import subprocess
-import Tkinter as guitk
-from Tkinter import LEFT, RIGHT, TOP, DISABLED, N, E, S, W, NE, SE, SW, NW, CENTER, X, Y, BOTH
+import tkinter as guitk
+from tkinter import LEFT, RIGHT, TOP, DISABLED, N, E, S, W, NE, SE, SW, NW, CENTER, X, Y, BOTH
 from threading import Thread
-import tkFileDialog as fileDiag
+from tkinter import filedialog as fileDiag
 try:
 	import colorama
 except:
@@ -139,7 +139,7 @@ class logger:
 		"""
 		if not quiet:
 			for b in logger._buffer:
-				print b
+				print(b)
 			sys.stdout.flush()
 		logger.clear()
 	
@@ -262,6 +262,10 @@ class Command():
 				os.killgp(self._process.pid)
 			self._thread.join()
 			return False
+		if isinstance(self.out, bytes):
+			self.out = self.out.decode()
+		if isinstance(self.err, bytes):
+			self.err = self.err.decode()
 		return True
 	
 class Test:
@@ -291,7 +295,7 @@ class Test:
 	timeout = 60.0
 	"""Timeout after the DUT gets killed"""
 	
-	def __init__(self, data=None, DUT=None, name=None, description=None, command=None, stdout=None, stderr=None, returnCode=None, timeout=60.0):
+	def __init__(self, data=None, DUT=None, name=None, description=None, command=None, stdout=None, stderr=None, returnCode=0, timeout=60.0):
 		"""
 		Initalises a test
 		
@@ -368,7 +372,7 @@ class Test:
 		if self.state == TestState.Disabled:
 			return TestState.Disabled
 		if self.state == TestState.InfoOnly:
-			print "{} - {}".format(self.name, self.descr)
+			print("{} - {}".format(self.name, self.descr))
 			return TestState.InfoOnly
 		if self.cmd is not None and self.DUT is not None:
 			cmd_ = Command(cmd=str(self.cmd).replace("$DUT", self.DUT))
@@ -377,9 +381,9 @@ class Test:
 				self.error = cmd_.err
 				self.retCode = cmd_.ret
 				if (self.pipe):
-					print >> sys.stdout, self.output.rstrip()
-					print >> sys.stderr, self.error.rstrip()
-				if self._check(self.expectRetCode, self.retCode) and self._check(self.expectStdout,self.output.rstrip()) and self._check(self.expectStderr,self.error.rstrip()):
+					sys.stdout.write( self.output.rstrip() )
+					sys.stderr.write( self.error.rstrip() )
+				if self._check(self.expectRetCode, self.retCode) and self._check(self.expectStdout, self.output.rstrip()) and self._check(self.expectStderr, self.error.rstrip()):
 					self.state = TestState.Success
 				else:
 					self.state = TestState.Fail
@@ -665,18 +669,19 @@ class TestRunner(Thread):
 		glb = {"__builtins__":None, "Test":Test, "Suite":TestSuite}
 		ctx = {self.suite:None, "DUT":None}
 		self._runsuite = None
-		execfile(self.file, glb, ctx)
-		if (self.suite in ctx):
-			if (ctx[self.suite] != None):
-				self._runsuite = TestSuite(ctx[self.suite], DUT=self.DUT, mode=self.mode)
-				self._runsuite.setAll(infoOnly=self.infoOnly, disabled = False, pipe=self._pipe)
-				self.tests = len(self._runsuite._testList)
-				if "DUT" in ctx and ctx['DUT'] is not None:
-					self.setDUT(ctx["DUT"])
+		with open(self.file, "r") as filehandle:
+			exec(filehandle.read() + "\n", glb, ctx)
+			if (self.suite in ctx):
+				if (ctx[self.suite] != None):
+					self._runsuite = TestSuite(ctx[self.suite], DUT=self.DUT, mode=self.mode)
+					self._runsuite.setAll(infoOnly=self.infoOnly, disabled = False, pipe=self._pipe)
+					self.tests = len(self._runsuite._testList)
+					if "DUT" in ctx and ctx['DUT'] is not None:
+						self.setDUT(ctx["DUT"])
+				else:
+					logger.log("Sorry, but I can't find any tests inside the suite '{}'".format(self.suite))
 			else:
-				logger.log("Sorry, but I can't find any tests inside the suite '{}'".format(self.suite))
-		else:
-			logger.log("Sorry, but there was no test-suite in the file")
+				logger.log("Sorry, but there was no test-suite in the file")
 		return self._runsuite
 		
 	def start(self, finished = None, test = -1):
@@ -688,7 +693,7 @@ class TestRunner(Thread):
 	def run(self):
 		"""Thread run function"""
 		if self.lengthOnly:
-			print len(self._runsuite.getTests())
+			print(len(self._runsuite.getTests()))
 		else:
 			logger.flush(self.quiet)
 			self._runsuite.setMode(self.mode)
@@ -1261,40 +1266,40 @@ class TestRunnerGui(Thread):
 
 def printHelp():
 	"""Print usage information for this tool"""
-	print "pyTest"
-	print ""
-	print "A test tool for non-interactive commandline programms"
-	print ""
-	print "Usage: {} [OPTIONS]".format(os.path.relpath(sys.argv[0]))
-	print "  OPTIONS:"
-	print "    -bench:TESTBENCH"
-	print "        Load the testbench form the file TESTBENCH."
-	print "    -suite:SUITE"
-	print "        Use the testsuite SUITE from the testbench."
-	print "    -test:TEST"
-	print "        Only run test number TEST."
-	print "    -dut:DUT"
-	print "        Set the device under test to the file DUT."
-	print "    -c"
-	print "        Continuous mode (Don't halt on failed tests)."
-	print "    -e"
-	print "        Same as '-c', but will halt if an error occurs."
-	print "    -l"
-	print "        Print only the number of tests in the suite."
-	print "    -p"
-	print "        Redirect DUT output to their respective streams."
-	print "    --no-color"
-	print "        Don't use any colored output."
-	print "    --no-gui"
-	print "        Don't use the GUI."
-	print "    --info-only"
-	print "        Display only test information, but don't run them."
-	print "    -q"
-	print "        Quiet mode. There will be no output except results."
-	print "    -v"
-	print "        Verbose mode. The program gets chatty."
-	print "    -h, --help, -?"
-	print "        Print this help"
+	print("""pyTest
+
+A test tool for non-interactive commandline programms
+
+Usage: {} [OPTIONS]
+  OPTIONS:
+    -bench:TESTBENCH
+        Load the testbench form the file TESTBENCH.
+    -suite:SUITE
+        Use the testsuite SUITE from the testbench.
+    -test:TEST
+        Only run test number TEST.
+    -dut:DUT
+        Set the device under test to the file DUT.
+    -c
+        Continuous mode (Don't halt on failed tests).
+    -e
+        Same as '-c', but will halt if an error occurs.
+    -l
+        Print only the number of tests in the suite.
+    -p
+        Redirect DUT output to their respective streams.
+    --no-color
+        Don't use any colored output.
+    --no-gui
+        Don't use the GUI.
+    --info-only
+        Display only test information, but don't run them.
+    -q
+        Quiet mode. There will be no output except results.
+    -v
+        Verbose mode. The program gets chatty.
+    -h, --help, -?
+        Print this help""".format(os.path.relpath(sys.argv[0])))
 	exit(0)
 	
 
@@ -1309,7 +1314,7 @@ if __name__ == "__main__":
 		suite = runner.loadSuite()
 		runner.run()
 		if not runner.lengthOnly and not runner.infoOnly and runner.test == -1:
-			print "{:2.2f}%".format(suite.getRate())
+			print("{:2.2f}%".format(suite.getRate()))
 		sys.exit(suite._lastResult)
 	else:
 		gui = TestRunnerGui()

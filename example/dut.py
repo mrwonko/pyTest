@@ -10,5 +10,5 @@ if __name__ == "__main__":
 		while True:
 			i = 0
 	for arg in argv:
-		print arg
+		print(arg)
 	exit(0)
